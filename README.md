@@ -14,3 +14,23 @@ Moris is a privacy-first Discord bot that automatically scans messages containin
 - 🕒 Per-user rate limiting to avoid spam
 
 ---
+## 🧪 Test It
+In any server where Moris is added, send a message like:
+
+```
+Check this out: https://grabify.link/fake123
+```
+Moris will reply:
+
+```
+🚫 This link is a known IP logger (`grabify.link`). Do not click it.
+```
+
+Or 
+
+```
+🔍 Scanning: https://​www.roblox.com/
+🟢 Verdict: CLEAN (0/70 engines flagged it)
+🔗 https://www.scannedurl.com
+```
+
