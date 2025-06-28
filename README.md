@@ -84,11 +84,5 @@ Moris replies:
 
 ## 🛠 Configuration
 
-* Default cooldown: `30` seconds per user
+* Default cooldown: `20` seconds per user
 * All scans are public (default for urlscan free tier)
-* You can edit `moris.py` to:
-
-  * Restrict channels
-  * Add admin-only commands
-  * Scan only on request (e.g. `!scan <url>`)
-
