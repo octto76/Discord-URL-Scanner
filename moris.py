@@ -61,7 +61,7 @@ async def on_message(message):
         domain = parsed.netloc.lower()
 
         # Block known IP logger domains
-        if any(grabber in domain for grabber in ip_grabber_domains):
+        if any(domain == grabber or domain.endswith(f".{grabber}") for grabber in ip_grabber_domains):
             await message.reply(
                 f"🚫 This link is a known IP logger (`{domain}`). Do not click it.",
                 mention_author=False,
