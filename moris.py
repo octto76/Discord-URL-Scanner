@@ -1,24 +1,36 @@
 import discord
-import re 
-import aiohttp 
-import asyncio 
-import os 
-import time 
-from dotenv import load_dotenv 
+import re
+import aiohttp
+import asyncio
+import os
+import time
+from urllib.parse import urlparse
+from dotenv import load_dotenv
 
-load_dotenv() # ts hides API keys I believe 
+load_dotenv()
 
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-URLSCAN_API_KEY = os.getenv('URLSCAN_API_KEY') 
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+URLSCAN_API_KEY = os.getenv("URLSCAN_API_KEY")
 
 intents = discord.Intents.default()
-intents.message_content = True 
+intents.message_content = True
 client = discord.Client(intents=intents)
 
 URL_REGEX = r"https?://[^\s]+"
-user_cooldowns = {} 
-COOLDOWN_SECONDS = 20 
+COOLDOWN_SECONDS = 30
+user_cooldowns = {}
 
+# Known IP grabber / logger domains
+ip_grabber_domains = [
+    "grabify.link", "bmwforum.co", "iplogger.org", "2no.co", "iplogger.com",
+    "ipgrabber.ru", "ip-tracker.org", "yip.su", "blasze.com", "gyazo.nl",
+    "gyazo.in", "freegiftcards.co", "leancoding.co", "curiouscat.club",
+    "yourmy.app", "stopify.co", "spottyfly.com", "joinmy.site"
+]
+
+@client.event
+async def on_ready():
+    print(f"✅ Logged in as {client.user.name}")
 
 @client.event
 async def on_message(message):
@@ -27,58 +39,62 @@ async def on_message(message):
 
     urls = re.findall(URL_REGEX, message.content)
     if not urls:
-        return  # Exit early if there are no links
+        return
 
     user_id = message.author.id
     now = time.time()
 
-    # Rate limit only if user is scanning something
     last_used = user_cooldowns.get(user_id, 0)
     if now - last_used < COOLDOWN_SECONDS:
-        await message.reply(
-            f"⏳ Please wait {int(COOLDOWN_SECONDS - (now - last_used))}s before scanning again.",
-            mention_author=False
-        )
+        wait_time = int(COOLDOWN_SECONDS - (now - last_used))
+        await message.reply(f"⏳ Please wait {wait_time}s before scanning again.", mention_author=False)
         return
 
     user_cooldowns[user_id] = now
 
     for url in urls:
-        # Known domains we skip scanning
-        blocked_domains = ["google.com", "facebook.com", "youtube.com", "twitter.com"]
-        if any(domain in url for domain in blocked_domains):
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+
+        # Block known IP logger domains
+        if any(grabber in domain for grabber in ip_grabber_domains):
             await message.reply(
-                f"⚠️ This domain is not scannable via urlscan.io: {url}",
+                f"🚫 This link is a known IP logger (`{domain}`). Do not click it.",
                 mention_author=False,
                 suppress_embeds=True
             )
             continue
 
-        await message.reply(
+        # Send initial message and keep reference to edit later
+        status_msg = await message.reply(
             f"🔍 Scanning: {url}",
             mention_author=False,
             suppress_embeds=True
         )
 
         async with message.channel.typing():
-            result_url, verdict, categories = await scan_and_poll_url(url)
+            result_url, verdict, score, categories = await scan_and_poll_url(url)
 
         if result_url:
-            verdict_emoji = "🟢" if verdict == "clean" else "🔴"
-            category_str = f"({', '.join(categories)})" if categories else ""
-            response = (
-                f"{verdict_emoji} Verdict: **{verdict.upper()}** {category_str}\n"
+            verdict_emoji = "🟢"
+            if verdict == "malicious":
+                verdict_emoji = "🔴"
+            elif score >= 60:
+                verdict_emoji = "🟡"
+                verdict = "suspicious"
+
+            categories_str = f"({', '.join(categories)})" if categories else ""
+            final_msg = (
+                f"🔍 Scanning: {url}\n"
+                f"{verdict_emoji} Verdict: **{verdict.upper()}** {categories_str}\n"
                 f"🔗 {result_url}"
             )
-            await message.reply(response, mention_author=False, suppress_embeds=True)
+            await status_msg.edit(content=final_msg, suppress_embeds=True)
         else:
-            await message.reply(
-                f"❌ Failed to scan: {url}",
-                mention_author=False,
+            await status_msg.edit(
+                content=f"🔍 Scanning: {url}\n❌ Failed to scan this link.",
                 suppress_embeds=True
             )
-
-
 
 async def scan_and_poll_url(url):
     headers = {"API-Key": URLSCAN_API_KEY, "Content-Type": "application/json"}
@@ -86,31 +102,32 @@ async def scan_and_poll_url(url):
 
     async with aiohttp.ClientSession() as session:
         try:
-            # Submit the scan
+            # Submit scan
             async with session.post("https://urlscan.io/api/v1/scan/", json=payload, headers=headers) as res:
                 if res.status != 200:
-                    return None, None, None
+                    return None, None, None, None
                 data = await res.json()
                 uuid = data.get("uuid")
                 result_url = f"https://urlscan.io/result/{uuid}/"
 
-            # Wait before polling result
+            # Wait for scan to complete
             await asyncio.sleep(15)
 
-            # Poll for scan result
+            # Fetch scan result
             async with session.get(f"https://urlscan.io/api/v1/result/{uuid}/") as res:
                 if res.status != 200:
-                    return result_url, "unknown", None
-                result_data = await res.json()
+                    return result_url, "unknown", 0, []
+                result = await res.json()
+                verdict_obj = result.get("verdicts", {}).get("overall", {})
 
-                verdict_obj = result_data.get("verdicts", {}).get("overall", {})
                 malicious = verdict_obj.get("malicious", False)
+                score = verdict_obj.get("score", 0) or 0
                 categories = verdict_obj.get("categories", [])
                 verdict = "malicious" if malicious else "clean"
 
-                return result_url, verdict, categories
+                return result_url, verdict, score, categories
         except Exception as e:
             print("Error:", e)
-            return None, None, None
+            return None, None, None, None
 
 client.run(DISCORD_TOKEN)
