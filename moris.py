@@ -20,7 +20,7 @@ user_cooldowns = {}
 COOLDOWN_SECONDS = 20 
 
 
-@client.event 
+@client.event
 async def on_message(message):
     if message.author.bot:
         return
@@ -31,23 +31,29 @@ async def on_message(message):
     # Rate limit check
     last_used = user_cooldowns.get(user_id, 0)
     if now - last_used < COOLDOWN_SECONDS:
-        await message.channel.send(f"⏳ Please wait {int(COOLDOWN_SECONDS - (now - last_used))}s before scanning again.")
+        await message.reply(f"⏳ Please wait {int(COOLDOWN_SECONDS - (now - last_used))}s before scanning again.", mention_author=False)
         return
 
     urls = re.findall(URL_REGEX, message.content)
     if urls:
-        user_cooldowns[user_id] = now  # Update cooldown
+        user_cooldowns[user_id] = now
         for url in urls:
-            await message.channel.send(f"🔍 Scanning: {url}")
-            result_url, verdict, categories = await scan_and_poll_url(url)
+            # Respond immediately with a typing indicator
+            await message.reply(f"🔍 Scanning: {url}", mention_author=False, suppress_embeds=True)
+            async with message.channel.typing():
+                result_url, verdict, categories = await scan_and_poll_url(url)
+
             if result_url:
                 verdict_emoji = "🟢" if verdict == "clean" else "🔴"
                 category_str = f"({', '.join(categories)})" if categories else ""
-                await message.channel.send(
-                    f"{verdict_emoji} Verdict: **{verdict.upper()}** {category_str}\n🔗 {result_url}"
+                response = (
+                    f"{verdict_emoji} Verdict: **{verdict.upper()}** {category_str}\n"
+                    f"🔗 {result_url}"
                 )
+                await message.reply(response, mention_author=False, suppress_embeds=True)
             else:
-                await message.channel.send(f"❌ Failed to scan: {url}")
+                await message.reply("❌ Failed to scan the link.", mention_author=False)
+
 
 async def scan_and_poll_url(url):
     headers = {"API-Key": URLSCAN_API_KEY, "Content-Type": "application/json"}
