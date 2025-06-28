@@ -29,7 +29,7 @@ Moris will reply:
 Or 
 
 ```
-🔍 Scanning: https://​www.roblox.com/
+🔍 Scanning: https://www.scannedurl.com
 🟢 Verdict: CLEAN (0/70 engines flagged it)
 🔗 https://www.scannedurl.com
 ```
