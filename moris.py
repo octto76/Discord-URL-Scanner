@@ -22,10 +22,14 @@ user_cooldowns = {}
 
 # Known IP grabber / logger domains
 ip_grabber_domains = [
-    "grabify.link", "bmwforum.co", "iplogger.org", "2no.co", "iplogger.com",
-    "ipgrabber.ru", "ip-tracker.org", "yip.su", "blasze.com", "gyazo.nl",
-    "gyazo.in", "freegiftcards.co", "leancoding.co", "curiouscat.club",
-    "yourmy.app", "stopify.co", "spottyfly.com", "joinmy.site"
+    "grabify.link", "bmwforum.co", "catsnthing.com", "catsnthings.fun", "crabrave.pw",
+    "curiouscat.club", "datasig.io", "datauth.io", "dateing.club", "discörd.com",
+    "disçordapp.com", "fortnight.space", "fortnitechat.site", "freegiftcards.co", "gaming-at-my.best",
+    "gamingfun.me", "headshot.monster", "imageshare.best", "joinmy.site", "leancoding.co",
+    "locations.quest", "lovebird.guru", "minecräft.com", "mypic.icu", "otherhalf.life",
+    "partpicker.shop", "progaming.monster", "quickmessage.us", "screenshare.host", "screenshot.best",
+    "shrekis.life", "sportshub.bar", "spottyfly.com", "stopify.co", "särahah.eu", "särahah.pl",
+    "trulove.guru", "xda-developers.us", "yourmy.monster", "youshouldclick.us", "yoütu.be"
 ]
 
 @client.event
