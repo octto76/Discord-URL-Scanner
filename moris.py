@@ -22,7 +22,7 @@ user_cooldowns = {}
 
 # Known IP grabber / logger domains
 ip_grabber_domains = [
-    "grabify.link", "bmwforum.co", "iplogger.org", "2no.co", "iplogger.com",
+    "grabify.link", "grabify.org", "bmwforum.co", "iplogger.org", "2no.co", "iplogger.com",
     "ipgrabber.ru", "ip-tracker.org", "yip.su", "blasze.com", "gyazo.nl",
     "gyazo.in", "freegiftcards.co", "leancoding.co", "curiouscat.club",
     "yourmy.app", "stopify.co", "spottyfly.com", "joinmy.site"
@@ -57,7 +57,7 @@ async def on_message(message):
         domain = parsed.netloc.lower()
 
         # Block known IP logger domains
-        if any(grabber in domain for grabber in ip_grabber_domains):
+        if any(domain == grabber or domain.endswith(f".{grabber}") for grabber in ip_grabber_domains):
             await message.reply(
                 f"🚫 This link is a known IP logger (`{domain}`). Do not click it.",
                 mention_author=False,
