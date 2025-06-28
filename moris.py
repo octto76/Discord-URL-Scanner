@@ -5,6 +5,7 @@ import asyncio
 import os
 import time
 import base64
+import random
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 
@@ -40,6 +41,18 @@ async def on_ready():
 @client.event
 async def on_message(message):
     if message.author.bot:
+        return
+
+    if message.content.strip() == f"<@{client.user.id}>" or message.content.strip() == f"<@!{client.user.id}>":
+        cute_responses = [
+            "*“Rawr?”*",
+            "On my momma I was just born",
+            "Moris wants blood",
+            "Don't tempt moris",
+            "I'm gonna eat you"
+        ]
+        response = random.choice(cute_responses)
+        await message.reply(response, mention_author=False)
         return
 
     urls = re.findall(URL_REGEX, message.content)
