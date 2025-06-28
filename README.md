@@ -18,18 +18,18 @@ Moris is a privacy-first Discord bot that automatically scans messages containin
 In any server where Moris is added, send a message like:
 
 ```
-Check this out: https://grabify.link/fake123
+Check this out: https://www.someurl.com
 ```
 Moris will reply:
 
 ```
-🚫 This link is a known IP logger (`grabify.link`). Do not click it.
+🚫 This link is a known IP logger (`https://www.someurl.com`). Do not click it.
 ```
 
 Or 
 
 ```
-🔍 Scanning: https://www.scannedurl.com
+🔍 Scanning: https://www.someurl.com
 🟢 Verdict: CLEAN (0/70 engines flagged it)
 🔗 https://www.scannedurl.com
 ```
