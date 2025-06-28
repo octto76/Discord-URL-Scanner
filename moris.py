@@ -4,13 +4,14 @@ import aiohttp
 import asyncio
 import os
 import time
+import base64
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-URLSCAN_API_KEY = os.getenv("URLSCAN_API_KEY")
+VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -22,7 +23,7 @@ user_cooldowns = {}
 
 # Known IP grabber / logger domains
 ip_grabber_domains = [
-    "grabify.link", "bmwforum.co", "catsnthing.com", "catsnthings.fun", "crabrave.pw",
+    "grabify.org", "grabify.link", "bmwforum.co", "catsnthing.com", "catsnthings.fun", "crabrave.pw",
     "curiouscat.club", "datasig.io", "datauth.io", "dateing.club", "discörd.com",
     "disçordapp.com", "fortnight.space", "fortnitechat.site", "freegiftcards.co", "gaming-at-my.best",
     "gamingfun.me", "headshot.monster", "imageshare.best", "joinmy.site", "leancoding.co",
@@ -70,68 +71,75 @@ async def on_message(message):
             continue
 
         # Send initial message and keep reference to edit later
+        safe_url = url.replace("://", "://\u200b")
         status_msg = await message.reply(
-            f"🔍 Scanning: {url}",
+            f"🔍 Scanning: {safe_url}",
             mention_author=False,
             suppress_embeds=True
         )
 
         async with message.channel.typing():
-            result_url, verdict, score, categories = await scan_and_poll_url(url)
+            result = await scan_with_virustotal(url)
+            if result is None:
+                await status_msg.edit(content=f"🔍 Scanning: {safe_url}\n❌ Could not complete scan.")
+                return
 
-        if result_url:
-            verdict_emoji = "🟢"
-            if verdict == "malicious":
-                verdict_emoji = "🔴"
-            elif score >= 60:
-                verdict_emoji = "🟡"
-                verdict = "suspicious"
-
-            categories_str = f"({', '.join(categories)})" if categories else ""
-            final_msg = (
-                f"🔍 Scanning: {url}\n"
-                f"{verdict_emoji} Verdict: **{verdict.upper()}** {categories_str}\n"
-                f"🔗 <{result_url}>"
+            verdict, stats, permalink = result
+            
+        if verdict:
+            emoji = {"clean": "🟢", "suspicious": "🟡", "malicious": "🔴"}.get(verdict, "❓")
+            report_msg = (
+                f"🔍 Scanning: {safe_url}\n"
+                f"{emoji} Verdict: **{verdict.upper()}** ({stats['malicious']}/70 engines flagged it)\n"
+                f"🔗 <{permalink}>"
             )
-            await status_msg.edit(content=final_msg)
+            await status_msg.edit(content=report_msg)
         else:
-            await status_msg.edit(
-                content=f"🔍 Scanning: {url}\n❌ Failed to scan this link.",
-                suppress_embeds=True
-            )
+            await status_msg.edit(content=f"🔍 Scanning: {safe_url}\n❌ Could not complete scan.")
 
-async def scan_and_poll_url(url):
-    headers = {"API-Key": URLSCAN_API_KEY, "Content-Type": "application/json"}
-    payload = {"url": url, "public": "on"}
+async def scan_with_virustotal(url):
+    encoded_url = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
+    headers = {"x-apikey": VIRUSTOTAL_API_KEY}
 
     async with aiohttp.ClientSession() as session:
         try:
-            # Submit scan
-            async with session.post("https://urlscan.io/api/v1/scan/", json=payload, headers=headers) as res:
-                if res.status != 200:
-                    return None, None, None, None
-                data = await res.json()
-                uuid = data.get("uuid")
-                result_url = f"https://urlscan.io/result/{uuid}/"
+            # Submit URL for scanning
+            async with session.post(
+                "https://www.virustotal.com/api/v3/urls",
+                headers=headers,
+                data={"url": url}
+            ) as post_res:
+                if post_res.status != 200:
+                    return None, None, None
+                post_data = await post_res.json()
+                analysis_id = post_data["data"]["id"]
 
-            # Wait for scan to complete
-            await asyncio.sleep(15)
+            # Poll for result
+            for _ in range(6):  # Try for ~15 seconds
+                await asyncio.sleep(3)
+                async with session.get(
+                    f"https://www.virustotal.com/api/v3/analyses/{analysis_id}",
+                    headers=headers
+                ) as result_res:
+                    result_data = await result_res.json()
+                    status = result_data["data"]["attributes"]["status"]
+                    if status == "completed":
+                        stats = result_data["data"]["attributes"]["stats"]
+                        positives = stats.get("malicious", 0) + stats.get("suspicious", 0)
 
-            # Fetch scan result
-            async with session.get(f"https://urlscan.io/api/v1/result/{uuid}/") as res:
-                if res.status != 200:
-                    return result_url, "unknown", 0, []
-                result = await res.json()
-                verdict_obj = result.get("verdicts", {}).get("overall", {})
+                        if positives == 0:
+                            verdict = "clean"
+                        elif positives <= 4:
+                            verdict = "suspicious"
+                        else:
+                            verdict = "malicious"
 
-                malicious = verdict_obj.get("malicious", False)
-                score = verdict_obj.get("score", 0) or 0
-                categories = verdict_obj.get("categories", [])
-                verdict = "malicious" if malicious else "clean"
-
-                return result_url, verdict, score, categories
+                        permalink = f"https://www.virustotal.com/gui/url/{encoded_url}"
+                        return verdict, stats, permalink
         except Exception as e:
-            print("Error:", e)
-            return None, None, None, None
+            print(f"[ERROR] VirusTotal scan failed: {e}")
+            return None, None, None
+        
+if __name__ == "__main__":
+    client.run(DISCORD_TOKEN)
 
-client.run(DISCORD_TOKEN)
