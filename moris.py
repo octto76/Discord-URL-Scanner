@@ -87,9 +87,9 @@ async def on_message(message):
             final_msg = (
                 f"🔍 Scanning: {url}\n"
                 f"{verdict_emoji} Verdict: **{verdict.upper()}** {categories_str}\n"
-                f"🔗 {result_url}"
+                f"🔗 <{result_url}>"
             )
-            await status_msg.edit(content=final_msg, suppress_embeds=True)
+            await status_msg.edit(content=final_msg)
         else:
             await status_msg.edit(
                 content=f"🔍 Scanning: {url}\n❌ Failed to scan this link.",
