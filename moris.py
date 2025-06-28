@@ -45,8 +45,8 @@ async def on_message(message):
 
     if message.content.strip() == f"<@{client.user.id}>" or message.content.strip() == f"<@!{client.user.id}>":
         cute_responses = [
-            "*“Rawr?”*",
-            "On my momma I was just born",
+            "是?",
+            "If you don't feed me, it will!",
             "Moris wants blood",
             "Don't tempt moris",
             "I'm gonna eat you"
