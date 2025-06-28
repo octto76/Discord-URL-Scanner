@@ -25,34 +25,59 @@ async def on_message(message):
     if message.author.bot:
         return
 
+    urls = re.findall(URL_REGEX, message.content)
+    if not urls:
+        return  # Exit early if there are no links
+
     user_id = message.author.id
     now = time.time()
 
-    # Rate limit check
+    # Rate limit only if user is scanning something
     last_used = user_cooldowns.get(user_id, 0)
     if now - last_used < COOLDOWN_SECONDS:
-        await message.reply(f"⏳ Please wait {int(COOLDOWN_SECONDS - (now - last_used))}s before scanning again.", mention_author=False)
+        await message.reply(
+            f"⏳ Please wait {int(COOLDOWN_SECONDS - (now - last_used))}s before scanning again.",
+            mention_author=False
+        )
         return
 
-    urls = re.findall(URL_REGEX, message.content)
-    if urls:
-        user_cooldowns[user_id] = now
-        for url in urls:
-            # Respond immediately with a typing indicator
-            await message.reply(f"🔍 Scanning: {url}", mention_author=False, suppress_embeds=True)
-            async with message.channel.typing():
-                result_url, verdict, categories = await scan_and_poll_url(url)
+    user_cooldowns[user_id] = now
 
-            if result_url:
-                verdict_emoji = "🟢" if verdict == "clean" else "🔴"
-                category_str = f"({', '.join(categories)})" if categories else ""
-                response = (
-                    f"{verdict_emoji} Verdict: **{verdict.upper()}** {category_str}\n"
-                    f"🔗 {result_url}"
-                )
-                await message.reply(response, mention_author=False, suppress_embeds=True)
-            else:
-                await message.reply("❌ Failed to scan the link.", mention_author=False)
+    for url in urls:
+        # Known domains we skip scanning
+        blocked_domains = ["google.com", "facebook.com", "youtube.com", "twitter.com"]
+        if any(domain in url for domain in blocked_domains):
+            await message.reply(
+                f"⚠️ This domain is not scannable via urlscan.io: {url}",
+                mention_author=False,
+                suppress_embeds=True
+            )
+            continue
+
+        await message.reply(
+            f"🔍 Scanning: {url}",
+            mention_author=False,
+            suppress_embeds=True
+        )
+
+        async with message.channel.typing():
+            result_url, verdict, categories = await scan_and_poll_url(url)
+
+        if result_url:
+            verdict_emoji = "🟢" if verdict == "clean" else "🔴"
+            category_str = f"({', '.join(categories)})" if categories else ""
+            response = (
+                f"{verdict_emoji} Verdict: **{verdict.upper()}** {category_str}\n"
+                f"🔗 {result_url}"
+            )
+            await message.reply(response, mention_author=False, suppress_embeds=True)
+        else:
+            await message.reply(
+                f"❌ Failed to scan: {url}",
+                mention_author=False,
+                suppress_embeds=True
+            )
+
 
 
 async def scan_and_poll_url(url):
