@@ -14,6 +14,7 @@ Moris is a privacy-first Discord bot that automatically scans messages containin
 
 ## 🧪 Test It
 👉 **[Invite Moris to your server](https://discord.com/oauth2/authorize?client_id=1388567819154886737&permissions=93184&integration_type=0&scope=bot+applications.commands)**
+
 In any server where Moris is added, send a message like:
 
 ```
