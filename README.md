@@ -10,9 +10,6 @@ Moris is a privacy-first Discord bot that automatically scans messages containin
 - 🔍 Submits links to **VirusTotal** and polls for a verdict
 - 🚫 Blocks known IP logger domains (e.g., Grabify)
 - 🛡️ Displays a clear verdict: Clean, Suspicious, or Malicious
-- 🧼 Prevents link previews for stealth/scam links
-- 🕒 Per-user rate limiting to avoid spam
-
 ---
 ## 🧪 Test It
 In any server where Moris is added, send a message like:
